@@ -7,7 +7,7 @@ import { MatDialog } from '@angular/material/dialog';
 
 import { Hero, Publisher } from '../../interfaces/hero.interface';
 import { HeroesService } from '../../services/heroes.service';
-import { switchMap } from 'rxjs';
+import { filter, switchMap, tap } from 'rxjs';
 
 import { ConfirmDialogComponent } from '../../components/confirm-dialog/confirm-dialog.component';
 
@@ -69,39 +69,56 @@ export class NewPageComponent implements OnInit {
 
     if (this.currentHero.id) {
       this.heroesService.updateHero(this.currentHero).subscribe((hero) => {
-        this.showSnackbar(`${hero.superhero} updated!`)
+        this.showSnackbar(`${hero.superhero} updated!`);
       });
       return;
     }
 
     this.heroesService.addHero(this.currentHero).subscribe((hero) => {
-      this.router.navigate(['heroes/edit',hero.id])
-      this.showSnackbar(`${hero.superhero} created!`)
-
-
+      this.router.navigate(['heroes/edit', hero.id]);
+      this.showSnackbar(`${hero.superhero} created!`);
     });
 
     //this.heroesService.updateHero()
   }
 
-  onDeleteHero(){
-    if (!this.currentHero.id) throw new Error("Hero id is required");
+  onDeleteHero() {
+    if (!this.currentHero.id) throw new Error('Hero id is required');
 
     const dialogRef = this.dialog.open(ConfirmDialogComponent, {
       data: this.heroForm.value,
     });
 
-    dialogRef.afterClosed().subscribe(result => {
-      console.log('The dialog was closed');
-      console.log(result);
-      if (!result) return;
+    //opcion1
+    // dialogRef.afterClosed().subscribe(result => {
+    //   console.log('The dialog was closed');
+    //   console.log(result);
+    //   if (!result) return;
 
-      this.heroesService.deleteHero(this.currentHero.id);
-      this.router.navigate(['/heroes'])
+    //   this.heroesService.deleteHero(this.currentHero.id).subscribe(wasDeleted =>{
+    //     if (wasDeleted){
+    //       this.showSnackbar(`el heroe a sido eliminado!`)
+    //       this.router.navigate(['/heroes'])
+    //     }
+    //   })
 
-    });
+    // });
 
-
+    //opcion2
+    dialogRef
+      .afterClosed()
+      .pipe(
+        filter((result: boolean) => result),
+        //tap((result) => console.log(result))
+        switchMap(() => this.heroesService.deleteHero(this.currentHero.id)),
+        filter((wasDeleted: boolean) => wasDeleted),
+        // tap((wasDeleted) => console.log(wasDeleted)
+        // tap(() => this.showSnackbar(`el heroe a sido eliminado!`))
+      )
+      .subscribe((result) => {
+        this.showSnackbar(`el heroe a sido eliminado!`)
+        this.router.navigate(['/heroes'])
+      });
   }
 
   showSnackbar(message: string) {
